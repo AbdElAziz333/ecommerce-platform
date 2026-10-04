@@ -106,8 +106,30 @@ kube_apply_postgres:
 kube_apply_redis:
 	kubectl apply -f ./gitops/k8s/base/redis
 
+kube_apply_dbs: kube_apply_postgres kube_apply_redis
+
+kube_apply_gatway:
+	kubectl apply -f ./gitops/k8s/base/gateway
+
+kube_apply_product:
+	kubectl apply -f ./gitops/k8s/base/product
+
+kube_apply_order:
+	kubectl apply -f ./gitops/k8s/base/order
+
+kube_apply_kustomize:
+	kubectl apply -k ./gitops/k8s/base
+
+kube_apply_apps: kube_apply_gatway kube_apply_product kube_apply_order
+
 kube_apply_all:
 	kubectl apply -f ./gitops/k8s/base -R
 
 kube_delete_all:
 	kubectl delete -f ./gitops/k8s/base -R
+
+kube_delete_kustomize:
+	kubectl delete -k ./gitops/k8s/base/
+
+flux_refresh:
+	flux reconcile kustomization ecommerce-backend --with-source
