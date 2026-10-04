@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+    url: jdbc:postgresql://${POSTGRES_HOST}:5432/${POSTGRES_DB}
     username: ${POSTGRES_USER}
     password: ${POSTGRES_PASSWORD}
   data:
@@ -11,39 +11,32 @@ spring:
       timeout: 2000ms
   cloud:
     gateway:
-      discovery:
-        locator:
-          enabled: true
-          lower-case-service-id: true
       server:
         webmvc:
           routes:
             - id: product-service
-              uri: lb://product-service
+              uri: http://product-service:8082
               predicates:
                 - Path=/api/v1/products/**
 
             - id: cart-service
-              uri: lb://order-service
+              uri: http://order-service:8083
               predicates:
                 - Path=/api/v1/carts/**
 
             - id: order-service
-              uri: lb://order-service
+              uri: http://order-service:8083
               predicates:
                 - Path=/api/v1/orders/**
 
             - id: order-items-service
-              uri: lb://order-service
+              uri: http://order-service:8083
               predicates:
                 - Path=/api/v1/order-items/**
 
 eureka:
   client:
-    register-with-eureka: true
-    fetch-registry: true
-    serviceUrl:
-      defaultZone: http://discovery:8080/eureka/
+    enabled: false
 
 jwt:
   accessToken:

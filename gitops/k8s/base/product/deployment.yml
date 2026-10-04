@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: product
+  template:
+    metadata:
+      labels:
+        app: product
+    spec:
+      containers:
+        - name: product
+          image: abdelaziz333/ecommerce-product:0.0.1
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8082
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: product-config
+            - secretRef:
+                name: product-secret

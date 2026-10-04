@@ -37,8 +37,11 @@ out/
 .vscode/
 secrets/
 .gradle/
-.env
+backend/.env
 infra/vault/data/
 infra/vault/logs/
 /notification-service/src/main/resources/secure-connect.zip
 infra/redis/*
+
+secret.yml
+gitops/k8s/base/*/secret.env

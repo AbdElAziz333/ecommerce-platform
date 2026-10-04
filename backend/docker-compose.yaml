@@ -24,8 +24,8 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        SVC_NAME: discovery
-        SVC_PORT: ${DISCOVERY_PORT}
+        APP_NAME: discovery
+        APP_PORT: ${DISCOVERY_PORT}
     ports:
       - "${DISCOVERY_PORT}:${DISCOVERY_PORT}"
     environment:
@@ -45,18 +45,17 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        SVC_NAME: gateway
-        SVC_PORT: ${GATEWAY_PORT}
+        APP_NAME: gateway
+        APP_PORT: ${GATEWAY_PORT}
     ports:
       - "${GATEWAY_PORT}:${GATEWAY_PORT}"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      PORT: ${GATEWAY_PORT}
+      APP_PORT: ${GATEWAY_PORT}
       POSTGRES_DB: auth
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      REDIS_USER: ${REDIS_APP_USER}
-      REDIS_PASSWORD: ${REDIS_APP_PASSWORD}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
       ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET}
       REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET}
     <<: *common-service
@@ -76,13 +75,13 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        SVC_NAME: product
-        SVC_PORT: ${PRODUCT_PORT}
+        APP_NAME: product
+        APP_PORT: ${PRODUCT_PORT}
     ports:
       - "${PRODUCT_PORT}:${PRODUCT_PORT}"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      PORT: ${PRODUCT_PORT}
+      APP_PORT: ${PRODUCT_PORT}
       POSTGRES_DB: product
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -105,18 +104,17 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        SVC_NAME: order
-        SVC_PORT: ${ORDER_PORT}
+        APP_NAME: order
+        APP_PORT: ${ORDER_PORT}
     ports:
       - "${ORDER_PORT}:${ORDER_PORT}"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      PORT: ${ORDER_PORT}
+      APP_PORT: ${ORDER_PORT}
       POSTGRES_DB: orders
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      REDIS_USER: ${REDIS_APP_USER}
-      REDIS_PASSWORD: ${REDIS_APP_PASSWORD}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
     <<: *common-service
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:${ORDER_PORT}/actuator/health" ]
@@ -150,36 +148,22 @@ services:
   redis:
     image: redis:8.6.2-alpine
     environment:
-      REDIS_ADMIN_USER: ${REDIS_ADMIN_USER}
-      REDIS_ADMIN_PASSWORD: ${REDIS_ADMIN_PASSWORD}
-      REDIS_APP_USER: ${REDIS_APP_USER}
-      REDIS_APP_PASSWORD: ${REDIS_APP_PASSWORD}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
     command:
-      - redis-server
-      - --user
-      - default
-      - "off"
-      - --user
-      - ${REDIS_ADMIN_USER}
-      - "on"
-      - ">${REDIS_ADMIN_PASSWORD}"
-      - "~*"
-      - "+@all"
-      - --user
-      - ${REDIS_APP_USER}
-      - "on"
-      - ">${REDIS_APP_PASSWORD}"
-      - "~*"
-      - "+@all"
+      - sh
+      - -c
+      - exec redis-server --requirepass "${REDIS_PASSWORD}" --appendonly yes
     <<: *common-service
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli --user ${REDIS_ADMIN_USER} -a ${REDIS_ADMIN_PASSWORD} --no-auth-warning PING"]
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning PING | grep -q PONG"]
       <<: *database-healthcheck
     profiles:
       - database
       - all
+
 volumes:
   postgres_data:
   redis_data:

@@ -33,4 +33,4 @@ logging:
     console: "%d{HH:mm:ss} %-5level [%thread] %logger{36} - %msg%n"
 
 server:
-  port: ${PORT:8082}
+  port: ${APP_PORT:8083}

@@ -1,0 +1,20 @@
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: product
+spec:
+  name: product
+  owner: aziz
+  cluster:
+    name: pg
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: orders
+spec:
+  name: orders
+  owner: aziz
+  cluster:
+    name: pg

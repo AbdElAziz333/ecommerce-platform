@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order
+  template:
+    metadata:
+      labels:
+        app: order
+    spec:
+      containers:
+        - name: order
+          image: abdelaziz333/ecommerce-order:0.0.1
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8083
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: order-config
+            - secretRef:
+                name: order-secret

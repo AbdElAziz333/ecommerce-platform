@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+    url: jdbc:postgresql://${POSTGRES_HOST}:5432/${POSTGRES_DB}
     username: ${POSTGRES_USER}
     password: ${POSTGRES_PASSWORD}
   data:
@@ -12,7 +12,4 @@ spring:
 
 eureka:
   client:
-    register-with-eureka: true
-    fetch-registry: true
-    serviceUrl:
-      defaultZone: http://discovery:8080/eureka/
+    enabled: false

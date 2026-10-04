@@ -1,0 +1,56 @@
+- op: add
+  path: /spec/template/spec/terminationGracePeriodSeconds
+  value: 30
+
+- op: add
+  path: /spec/template/spec/containers/0/resources
+  value:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1024Mi
+
+- op: add
+  path: /spec/template/spec/containers/0/readinessProbe
+  value:
+    httpGet:
+      path: /actuator/health/readiness
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    failureThreshold: 3
+
+- op: add
+  path: /spec/template/spec/containers/0/livenessProbe
+  value:
+    httpGet:
+      path: /actuator/health/liveness
+      port: http
+    periodSeconds: 10
+    failureThreshold: 3
+
+- op: add
+  path: /spec/template/spec/containers/0/startupProbe
+  value:
+    httpGet:
+      path: /actuator/health
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    failureThreshold: 30
+
+- op: add
+  path: /spec/template/spec/containers/0/lifecycle
+  value:
+    preStop:
+      exec:
+        command: ["/bin/sh", "-c", "sleep 5"]
+
+- op: add
+  path: /spec/template/spec/securityContext
+  value:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000

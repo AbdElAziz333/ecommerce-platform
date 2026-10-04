@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - deployment.yml
+  - service.yml
+
+configMapGenerator:
+  - name: product-config
+    envs: [config.env]
+
+secretGenerator:
+  - name: product-secret
+    envs: [secret.enc.env]
+
+labels:
+  - pairs:
+      app: product
+      app.kubernetes.io/name: product
+    includeSelectors: false
+    includeTemplates: true

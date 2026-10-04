@@ -1,5 +1,3 @@
-rootProject.name = 'ecommerce-platform'
-
 include (
         'discovery',
         'gateway',
