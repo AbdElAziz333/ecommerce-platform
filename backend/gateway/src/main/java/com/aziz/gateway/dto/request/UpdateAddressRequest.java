@@ -1,30 +1,15 @@
 package com.aziz.gateway.dto.request;
 
-import com.aziz.gateway.util.enums.City;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import lombok.*;
+import com.aziz.gateway.util.AddressRules;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
-@Getter
-@Setter
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class UpdateAddressRequest {
-    @NotBlank
-    private String streetLine1;
-
-    private String streetLine2;
-
-    @NotNull
-    private City city;
-
-    @NotBlank
-    private String state;
-
-    @NotBlank
-    private String postalCode;
-
-    @NotNull
-    private Boolean isDefaultShipping;
-}
+// null = "not provided"; if provided, it must not be blank
+public record UpdateAddressRequest(
+        @Pattern(regexp = AddressRules.NOT_BLANK_REGEX) @Size(max = 150) String streetLine,
+        @Pattern(regexp = AddressRules.NOT_BLANK_REGEX) @Size(max = 50) String label,
+        @Pattern(regexp = AddressRules.CITY_REGEX, message = AddressRules.CITY_MESSAGE) String city,
+        @Pattern(regexp = AddressRules.NOT_BLANK_REGEX) @Size(max = 100) String state,
+        @Pattern(regexp = AddressRules.NOT_BLANK_REGEX) @Size(max = 20) String postalCode,
+        Boolean defaultShipping
+) {}

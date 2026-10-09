@@ -1,23 +1,21 @@
 package com.aziz.gateway.mapper;
 
-import com.aziz.gateway.dto.request.UserCreationRequest;
+import com.aziz.gateway.dto.response.AddressDto;
+import com.aziz.gateway.dto.response.CurrentUserDto;
 import com.aziz.gateway.dto.response.UserDto;
 import com.aziz.gateway.model.User;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Component
 public class UserMapper {
-    public UserDto userToDto(User user) {
-        return new UserDto(user.getId(), user.getFirstName(), user.getLastName());
+    public UserDto toDto(User u) {
+        return new UserDto(u.getId(), u.getFirstName(), u.getLastName());
     }
 
-    public User creationRequestToUser(UserCreationRequest request) {
-        return User.builder()
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
-                .email(request.getEmail())
-                .password(request.getPassword())
-                .phoneNumber(request.getPhoneNumber())
-                .build();
+    public CurrentUserDto toCurrentUserDto(User u, List<AddressDto> addresses) {
+        return new CurrentUserDto(u.getId(), u.getFirstName(), u.getLastName(), u.getEmail(),
+                u.getPhoneNumber(), u.getRole(), u.getPreferredLanguage(), addresses);
     }
 }

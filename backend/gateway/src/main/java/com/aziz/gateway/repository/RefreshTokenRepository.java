@@ -1,63 +1,47 @@
 package com.aziz.gateway.repository;
 
-import com.aziz.gateway.util.TokenEncryptor;
+import com.aziz.gateway.config.JwtProperties;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.time.Duration;
-import java.time.Instant;
-import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @Repository
 @RequiredArgsConstructor
 public class RefreshTokenRepository {
-    private final RedisTemplate<String, Object> redisTemplate;
-    private final TokenEncryptor encryptor;
+    private static final String TOKEN_PREFIX = "refresh:";
+    private static final String USER_PREFIX = "user-refresh:";
 
-    private static final Duration REFRESH_TOKEN_TTL = Duration.ofDays(15);
-    private static final String REFRESH_TOKEN_PREFIX = "REFRESH_TOKEN";
+    private final StringRedisTemplate redis;
+    private final JwtProperties jwt;
 
-    public void saveToken(Long userId, String tokenId, String refreshToken, Instant expiresAt) {
-        String hashedToken = encryptor.hashToken(refreshToken);
+    public void save(Long userId, String jti) {
+        Duration ttl = jwt.refreshToken().ttl();
+        redis.opsForValue().set(TOKEN_PREFIX + jti, userId.toString(), ttl);
 
-        Map<String, Object> data = Map.of(
-                "user_id", userId,
-                "hashed_token", hashedToken,
-                "expires_at", expiresAt
-        );
-
-        String key = getKey(tokenId);
-        redisTemplate.opsForHash().putAll(key, data);
-        redisTemplate.expire(key, REFRESH_TOKEN_TTL);
-
-        redisTemplate.opsForSet().add("user:" + userId + ":tokens", tokenId);
+        String userKey = USER_PREFIX + userId;
+        redis.opsForSet().add(userKey, jti);
+        redis.expire(userKey, ttl);
     }
 
-    public Optional<String> findRefreshToken(String tokenId) {
-        Map<Object, Object> data = redisTemplate.opsForHash().entries(getKey(tokenId));
+    /** Atomically deletes the token and returns its owner; empty if unknown, revoked or already used. */
+    public Optional<Long> consume(String jti) {
+        String userId = redis.opsForValue().getAndDelete(TOKEN_PREFIX + jti);
+        if (userId == null) return Optional.empty();
 
-        if (data.isEmpty()) {
-            return Optional.empty();
+        redis.opsForSet().remove(USER_PREFIX + userId, jti);
+        return Optional.of(Long.valueOf(userId));
+    }
+
+    public void deleteAllForUser(Long userId) {
+        String userKey = USER_PREFIX + userId;
+        Set<String> jtis = redis.opsForSet().members(userKey);
+        if (jtis != null && !jtis.isEmpty()) {
+            redis.delete(jtis.stream().map(j -> TOKEN_PREFIX + j).toList());
         }
-
-        return Optional.ofNullable((String) data.get("hashed_token"));
-    }
-
-    public void delete(String tokenId) {
-        String key = getKey(tokenId);
-        Map<Object, Object> data = redisTemplate.opsForHash().entries(key);
-
-        if (!data.isEmpty()) {
-            Long userId = Long.parseLong(data.get("user_id").toString());
-            redisTemplate.opsForSet().remove("user:" + userId + ":tokens", tokenId);
-        }
-
-        redisTemplate.delete(key);
-    }
-
-    private static String getKey(String tokenId) {
-        return REFRESH_TOKEN_PREFIX + ":" + tokenId;
+        redis.delete(userKey);
     }
 }

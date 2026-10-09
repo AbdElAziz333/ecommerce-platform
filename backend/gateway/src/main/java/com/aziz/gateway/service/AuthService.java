@@ -1,106 +1,110 @@
 package com.aziz.gateway.service;
 
-import com.aziz.gateway.config.JwtConfig;
-import com.aziz.gateway.dto.response.AuthUserDto;
+import com.aziz.gateway.dto.request.CreateUserRequest;
+import com.aziz.gateway.dto.response.AuthTokens;
 import com.aziz.gateway.model.User;
 import com.aziz.gateway.repository.RefreshTokenRepository;
 import com.aziz.gateway.repository.UserRepository;
 import com.aziz.gateway.dto.request.LoginRequest;
-import com.aziz.gateway.util.TokenEncryptor;
+import com.aziz.gateway.util.exceptions.AlreadyExistsException;
 import com.aziz.gateway.util.exceptions.InvalidCredentialsException;
-import com.aziz.gateway.util.exceptions.NotFoundException;
 import com.aziz.gateway.util.exceptions.UnauthorizedException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
+import io.jsonwebtoken.Claims;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.util.Optional;
+import java.util.UUID;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class AuthService {
+    private static final String DEFAULT_ROLE = "ROLE_USER";
+    private static final String DEFAULT_LANGUAGE = "ARABIC";
+
     private final JwtService jwtService;
-    private final RefreshTokenRepository refreshTokenRepository;
-    private final JwtConfig jwtConfig;
-    private final TokenEncryptor encryptor;
-    private final UserRepository repository;
+    private final RefreshTokenRepository refreshTokens;
+    private final UserRepository users;
     private final PasswordEncoder encoder;
+    private final String dummyHash;
 
-    public AuthUserDto login(LoginRequest request, HttpServletResponse httpResponse) {
-        log.debug("Attempting to login user with email: {}", request.getEmail());
-
-        User user = repository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new NotFoundException("Cannot verify credentials for user with email: {}, user not found"));
-
-        if (!encoder.matches(request.getPassword(), user.getPassword())) {
-            throw new InvalidCredentialsException("Password are wrong, please enter a valid one");
-        }
-
-        String accessToken = jwtService.generateAccessToken(user.getId(), user.getRole().name());
-        String refreshToken = jwtService.generateRefreshToken(user.getId());
-
-        String tokenId = jwtService.getJtiFromJwt(refreshToken);
-
-        jwtService.addAccessTokenToCookie(accessToken, httpResponse);
-        jwtService.addRefreshTokenToCookie(refreshToken, httpResponse);
-
-        refreshTokenRepository.saveToken(user.getId(), tokenId, refreshToken, Instant.now().plusMillis(jwtConfig.getRefreshToken().getMaxAge()));
-
-        log.info("User successfully logged in with email: {}", request.getEmail());
-
-        return new AuthUserDto(user.getId(), user.getRole());
+    public AuthService(JwtService jwtService, RefreshTokenRepository refreshTokens,
+                       UserRepository users, PasswordEncoder encoder) {
+        this.jwtService = jwtService;
+        this.refreshTokens = refreshTokens;
+        this.users = users;
+        this.encoder = encoder;
+        // unknown emails still pay for one BCrypt check, so response time doesn't reveal who is registered
+        this.dummyHash = encoder.encode("dummy-password");
     }
 
-    @Transactional
-    public void refreshToken(HttpServletRequest request, HttpServletResponse response) {
-        String refreshToken = jwtService.parseRefreshToken(request);
+    public AuthTokens login(LoginRequest request) {
+        User user = users.findByEmail(normalize(request.email())).orElse(null);
 
-        if (refreshToken == null || !jwtService.validateRefreshToken(refreshToken)) {
-            throw new UnauthorizedException("Refresh token is invalid or expired.");
+        boolean matches = encoder.matches(request.password(), user != null ? user.getPassword() : dummyHash);
+        if (user == null || !matches) {
+            throw new InvalidCredentialsException("Invalid email or password");
         }
 
-        String tokenId = jwtService.getJtiFromJwt(refreshToken);
-
-        Optional<String> storedToken = refreshTokenRepository.findRefreshToken(tokenId);
-
-        if (storedToken.isEmpty() || !encryptor.compare(refreshToken, storedToken.get())) {
-            throw new UnauthorizedException("Refresh token not found or has been revoked");
-        }
-
-        Long userId = jwtService.getUserIdFromJwt(refreshToken, true);
-
-        User user = repository.findById(userId).orElseThrow(
-                () -> new NotFoundException("User not found with id: " + userId));
-
-        AuthUserDto dto = new AuthUserDto(user.getId(), user.getRole());
-
-        refreshTokenRepository.delete(tokenId);
-
-        String newAccessToken = jwtService.generateAccessToken(dto.getUserId(), dto.getRole().name());
-        String newRefreshToken = jwtService.generateRefreshToken(dto.getUserId());
-        String newTokenId = jwtService.getJtiFromJwt(newRefreshToken);
-
-        refreshTokenRepository.saveToken(userId, newTokenId, newRefreshToken, Instant.now().plusMillis(jwtConfig.getRefreshToken().getMaxAge()));
-
-        jwtService.addAccessTokenToCookie(newAccessToken, response);
-        jwtService.addRefreshTokenToCookie(newRefreshToken, response);
+        log.info("User logged in: {}", user.getId());
+        return issueTokens(user);
     }
 
-    public void logout(HttpServletRequest request, HttpServletResponse response) {
-        String refreshToken = jwtService.parseRefreshToken(request);
-
-        if (refreshToken != null) {
-            String tokenId = jwtService.getJtiFromJwt(refreshToken);
-            refreshTokenRepository.delete(tokenId);
+    public AuthTokens register(CreateUserRequest request) {
+        String email = normalize(request.email());
+        if (users.existsByEmail(email)) {
+            throw new AlreadyExistsException("User already exists with provided email");
         }
 
-        jwtService.clearAccessTokenCookie(response);
-        jwtService.clearRefreshTokenCookie(response);
+        User user = User.builder()
+                .firstName(request.firstName())
+                .lastName(request.lastName())
+                .email(email)
+                .password(encoder.encode(request.password()))
+                .phoneNumber(request.phoneNumber())
+                .role(DEFAULT_ROLE)
+                .preferredLanguage(DEFAULT_LANGUAGE)
+                .build();
+
+        try {
+            users.saveAndFlush(user);
+        } catch (DataIntegrityViolationException e) {   // concurrent registration with the same email
+            throw new AlreadyExistsException("User already exists with provided email");
+        }
+
+        log.info("User registered: {}", user.getId());
+        return issueTokens(user);
+    }
+
+    public AuthTokens refreshToken(String refreshToken) {
+        Claims claims = jwtService.parseRefreshToken(refreshToken)
+                .orElseThrow(() -> new UnauthorizedException("Refresh token is invalid or expired"));
+        Long userId = Long.valueOf(claims.getSubject());
+
+        // atomic: a refresh token can be used exactly once, even with concurrent requests
+        boolean valid = refreshTokens.consume(claims.getId()).filter(userId::equals).isPresent();
+        if (!valid) {
+            throw new UnauthorizedException("Refresh token has been revoked or already used");
+        }
+
+        User user = users.findById(userId)
+                .orElseThrow(() -> new UnauthorizedException("User no longer exists"));
+        return issueTokens(user);
+    }
+
+    public void logout(String refreshToken) {
+        jwtService.parseRefreshToken(refreshToken).ifPresent(c -> refreshTokens.consume(c.getId()));
+    }
+
+    private AuthTokens issueTokens(User user) {
+        String jti = UUID.randomUUID().toString();
+        String refreshToken = jwtService.generateRefreshToken(user.getId(), jti);
+        refreshTokens.save(user.getId(), jti);
+        return new AuthTokens(jwtService.generateAccessToken(user.getId(), user.getRole()), refreshToken);
+    }
+
+    private static String normalize(String email) {
+        return email.trim().toLowerCase();
     }
 }

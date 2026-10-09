@@ -1,15 +1,12 @@
 package com.aziz.gateway.model;
 
-import com.aziz.gateway.util.enums.City;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Getter
 @Setter
@@ -23,16 +20,19 @@ public class Address {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
+    @Column(nullable = false, length = 50)
+    private String label;
+
     @Column(nullable = false, length = 150)
-    private String streetLine1;
+    private String streetLine;
 
-    @Column(length = 150)
-    private String streetLine2;
-
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(nullable = false)
-    private City city;
+    // ALEXANDRIA, EL_BEHEIRA, CAIRO, TANTA
+    @Column(nullable = false, length = 30)
+    private String city;
 
     @Column(nullable = false, length = 100)
     private String state;
@@ -41,17 +41,13 @@ public class Address {
     private String postalCode;
 
     @Column(nullable = false)
-    private Boolean isDefaultShipping;
+    private Boolean defaultShipping;
 
     @CreatedDate
     @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @LastModifiedDate
     @Column(nullable = false)
-    private LocalDateTime lastModifiedAt;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    private Instant updatedAt;
 }

@@ -1,191 +1,70 @@
 package com.aziz.gateway.service;
 
-import com.aziz.gateway.config.JwtConfig;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.JwtParser;
-import io.jsonwebtoken.Jwts;
+import com.aziz.gateway.config.JwtProperties;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
-import jakarta.annotation.PostConstruct;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Date;
-import java.util.UUID;
+import java.util.Optional;
 
 @Service
-@RequiredArgsConstructor
 public class JwtService {
-    private final JwtConfig config;
-    private SecretKey accessTokenSecret;
-    private SecretKey refreshTokenSecret;
-    private JwtParser accessTokenParser;
-    private JwtParser refreshTokenParser;
+    private static final String TYPE = "type";
+    private static final String ACCESS = "access";
+    private static final String REFRESH = "refresh";
 
-    @PostConstruct
-    public void init() {
-        accessTokenSecret = Keys.hmacShaKeyFor(config.getAccessToken().getSecret().getBytes(StandardCharsets.UTF_8));
-        refreshTokenSecret = Keys.hmacShaKeyFor(config.getRefreshToken().getSecret().getBytes(StandardCharsets.UTF_8));
-        accessTokenParser = Jwts.parser().verifyWith(accessTokenSecret).build();
-        refreshTokenParser = Jwts.parser().verifyWith(refreshTokenSecret).build();
+    private final JwtProperties props;
+    private final SecretKey key;
+    private final JwtParser parser;
+
+    public JwtService(JwtProperties props) {
+        this.props = props;
+        this.key = Keys.hmacShaKeyFor(props.secret().getBytes(StandardCharsets.UTF_8));
+        this.parser = Jwts.parser().verifyWith(key).build();
     }
 
-    public String generateAccessToken(Long id, String role) {
-        return Jwts.builder()
-                .subject(id.toString())
+    public String generateAccessToken(Long userId, String role) {
+        return builder(userId, ACCESS, props.accessToken().ttl())
                 .claim("role", role)
-                .claim("type", "access")
-                .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + config.getAccessToken().getMaxAge()))
-                .signWith(accessTokenSecret)
-                .compact();
+                .signWith(key).compact();
     }
 
-    public String generateRefreshToken(Long id) {
-        String jti = UUID.randomUUID().toString();
+    public String generateRefreshToken(Long userId, String jti) {
+        return builder(userId, REFRESH, props.refreshToken().ttl())
+                .id(jti)
+                .signWith(key).compact();
+    }
 
+    /** Claims if the token is a valid, unexpired access token; otherwise empty. */
+    public Optional<Claims> parseAccessToken(String token) {
+        return parse(token, ACCESS);
+    }
+
+    public Optional<Claims> parseRefreshToken(String token) {
+        return parse(token, REFRESH);
+    }
+
+    private JwtBuilder builder(Long userId, String type, Duration ttl) {
+        Instant now = Instant.now();
         return Jwts.builder()
-                .subject(id.toString())
-                .claim("type", "refresh")
-                .claim("jti", jti)
-                .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + config.getRefreshToken().getMaxAge()))
-                .signWith(refreshTokenSecret)
-                .compact();
+                .subject(userId.toString())
+                .claim(TYPE, type)
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(now.plus(ttl)));
     }
 
-    public Long getUserIdFromJwt(String token, boolean isRefreshToken) {
-        JwtParser parser = isRefreshToken ? refreshTokenParser : accessTokenParser;
-
-        return Long.parseLong(parser
-                .parseSignedClaims(token)
-                .getPayload()
-                .getSubject());
-    }
-
-    public String getRoleFromJwt(String token) {
-        return accessTokenParser
-                .parseSignedClaims(token)
-                .getPayload()
-                .get("role", String.class);
-    }
-
-    public String getJtiFromJwt(String token) {
-        return refreshTokenParser
-                .parseSignedClaims(token)
-                .getPayload()
-                .get("jti", String.class);
-    }
-
-    public String getTokenType(String token, boolean isRefreshToken) {
-        JwtParser parser = isRefreshToken ? refreshTokenParser : accessTokenParser;
-
-        return parser
-                .parseSignedClaims(token)
-                .getPayload()
-                .get("type", String.class);
-    }
-
-    public boolean validateAccessToken(String token) {
+    private Optional<Claims> parse(String token, String expectedType) {
+        if (token == null || token.isBlank()) return Optional.empty();
         try {
-            Claims claims = accessTokenParser.parseSignedClaims(token).getPayload();
-            String type = claims.get("type", String.class);
-            return "access".equals(type);
+            Claims claims = parser.parseSignedClaims(token).getPayload();
+            return expectedType.equals(claims.get(TYPE, String.class)) ? Optional.of(claims) : Optional.empty();
         } catch (JwtException | IllegalArgumentException e) {
-            return false;
+            return Optional.empty();
         }
-    }
-
-    public boolean validateRefreshToken(String token) {
-        try {
-            Claims claims = refreshTokenParser.parseSignedClaims(token).getPayload();
-            String type = claims.get("type", String.class);
-            return "refresh".equals(type);
-        } catch (JwtException | IllegalArgumentException e) {
-            return false;
-        }
-    }
-
-    public void addAccessTokenToCookie(String jwt, HttpServletResponse response) {
-        ResponseCookie cookie = ResponseCookie.from(config.getAccessToken().getCookieName(), jwt)
-                .httpOnly(true)
-                .secure(config.getAccessToken().isSecured())
-                .maxAge(config.getAccessToken().getMaxAge() / 1000)
-                .sameSite("Lax")
-                .path("/")
-                .build();
-
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-    }
-
-    public void addRefreshTokenToCookie(String jwt, HttpServletResponse response) {
-        ResponseCookie cookie = ResponseCookie.from(config.getRefreshToken().getCookieName(), jwt)
-                .httpOnly(true)
-                .secure(config.getRefreshToken().isSecured())
-                .maxAge(config.getRefreshToken().getMaxAge() / 1000)
-                .sameSite("Strict")
-                .path("/api/v1/auth/refresh")
-                .build();
-
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-    }
-
-    public void clearAccessTokenCookie(HttpServletResponse response) {
-        ResponseCookie cookie = ResponseCookie.from(config.getAccessToken().getCookieName(), "")
-                .httpOnly(true)
-                .secure(config.getAccessToken().isSecured())
-                .maxAge(0)
-                .sameSite("Lax")
-                .path("/")
-                .build();
-
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-    }
-
-    public void clearRefreshTokenCookie(HttpServletResponse response) {
-        ResponseCookie cookie = ResponseCookie.from(config.getRefreshToken().getCookieName(), "")
-                .httpOnly(true)
-                .secure(config.getRefreshToken().isSecured())
-                .maxAge(0)
-                .sameSite("Strict")
-                .path("/api/v1/auth/refresh")
-                .build();
-
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-    }
-
-    public String parseAccessToken(HttpServletRequest request) {
-        if (request.getCookies() == null) {
-            return null;
-        }
-
-        for (Cookie cookie : request.getCookies()) {
-            if (cookie.getName().equals(config.getAccessToken().getCookieName())) {
-                return cookie.getValue();
-            }
-        }
-
-        return null;
-    }
-
-    public String parseRefreshToken(HttpServletRequest request) {
-        Cookie[] cookies = request.getCookies();
-
-        if (cookies != null) {
-            for (Cookie cookie : cookies) {
-                if (cookie.getName().equals(config.getRefreshToken().getCookieName())) {
-                    return cookie.getValue();
-                }
-            }
-        }
-
-        return null;
     }
 }

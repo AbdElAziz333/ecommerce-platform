@@ -39,13 +39,11 @@ eureka:
     enabled: false
 
 jwt:
-  accessToken:
-    secret: ${ACCESS_TOKEN_SECRET}
-    cookieName: access_token
-    maxAge: 900000 # 15 minutes
+  secret: ${JWT_SECRET}
+  access-token:
     secured: false
-  refreshToken:
-    secret: ${REFRESH_TOKEN_SECRET}
-    cookieName: refresh_token
-    maxAge: 1209600000 # 15 days
+  refresh-token:
     secured: false
+
+session:
+  secure: false

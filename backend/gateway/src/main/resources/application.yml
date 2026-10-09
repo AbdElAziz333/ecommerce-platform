@@ -35,12 +35,18 @@ logging:
 server:
   port: ${APP_PORT:8081}
 
+jwt:
+  secret: ${JWT_SECRET} # required, at least 32 chars
+  access-token:
+    cookie-name: access_token
+    ttl: 15m
+    secured: true
+  refresh-token:
+    cookie-name: refresh_token
+    ttl: 15d
+    secured: true
+
 session:
   cookie: sessionId
-  maxAge: 7776000000 # 90 days
-  secure: false
-  headerName: Session-Id
-
-user:
-  idHeader: User-Id
-  roleHeader: User-Role
+  max-age: 90d
+  secure: true

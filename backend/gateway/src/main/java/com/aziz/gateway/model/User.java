@@ -1,17 +1,12 @@
 package com.aziz.gateway.model;
 
-import com.aziz.gateway.util.enums.PreferredLanguage;
-import com.aziz.gateway.util.enums.Role;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.time.LocalDateTime;
-import java.util.List;
+import java.time.Instant;
 
 @Getter
 @Setter
@@ -41,24 +36,19 @@ public class User {
     @Column(nullable = false, length = 20)
     private String phoneNumber;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(nullable = false)
-    private Role role;
+    // ROLE_USER, ROLE_VENDOR, ROLE_ADMIN
+    @Column(nullable = false, length = 20)
+    private String role;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(nullable = false)
-    private PreferredLanguage preferredLanguage;
+    // ARABIC, ENGLISH, RUSSIAN, FRENCH
+    @Column(nullable = false, length = 20)
+    private String preferredLanguage;
 
     @CreatedDate
     @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @LastModifiedDate
     @Column(nullable = false)
-    private LocalDateTime lastModifiedAt;
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Address> addresses;
+    private Instant updatedAt;
 }
