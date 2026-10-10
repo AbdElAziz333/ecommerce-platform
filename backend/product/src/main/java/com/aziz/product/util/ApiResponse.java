@@ -1,30 +1,14 @@
 package com.aziz.product.util;
 
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
-@Builder
-@Getter
-@Setter
-public class ApiResponse<T> {
-    private boolean success;
-    private String message;
-    private T data;
-
-    public static <T> ApiResponse<T> success(String message, T data) {
-        return ApiResponse.<T>builder()
-                .success(true)
-                .message(message)
-                .data(data)
-                .build();
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public record ApiResponse<T>(boolean success, T data, String message) {
+    public static <T> ApiResponse<T> ok(T data) {
+        return new ApiResponse<>(true, data, null);
     }
 
     public static <T> ApiResponse<T> error(String message) {
-        return ApiResponse.<T>builder()
-                .success(false)
-                .message(message)
-                .data(null)
-                .build();
+        return new ApiResponse<>(false, null, message);
     }
 }

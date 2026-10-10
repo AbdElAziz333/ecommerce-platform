@@ -1,34 +1,13 @@
 package com.aziz.product.dto.request;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
-import lombok.*;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.*;
 
-@Getter
-@Setter
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class CreateProductRequest {
-    @NotBlank
-    private String name;
+import java.util.List;
 
-    @NotBlank
-    @Size(max = 10000)
-    private String description;
-
-    @NotBlank
-    @Size(max = 1000)
-    private String shortDescription;
-
-    @NotBlank
-    private String sku;
-
-    @NotNull
-    private Double price;
-
-    @NotNull
-    private Integer stockQuantity;
-//    private List<String> variantAttributes;
-}
+public record CreateProductRequest(
+        @NotBlank @Size(max = 255) String name,
+        @NotBlank @Size(max = 10_000) String description,
+        @NotBlank @Size(max = 1_000) String shortDescription,
+        @NotEmpty @Size(max = 100) @Valid List<VariantRequest> variants
+) {}

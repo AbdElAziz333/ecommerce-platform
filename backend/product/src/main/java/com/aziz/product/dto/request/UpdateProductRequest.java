@@ -1,25 +1,12 @@
 package com.aziz.product.dto.request;
 
+import com.aziz.product.util.ValidationRules;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import lombok.*;
 
-@Getter
-@Setter
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class UpdateProductRequest {
-    private String name;
-
-    @Size(max = 10000)
-    private String description;
-
-    @Size(max = 1000)
-    private String shortDescription;
-
-    private String sku;
-
-    private Double price;
-
-    private Integer stockQuantity;
-}
+// null = "not provided"; if provided, it must not be blank
+public record UpdateProductRequest(
+        @Pattern(regexp = ValidationRules.NOT_BLANK_REGEX) @Size(max = 255) String name,
+        @Pattern(regexp = ValidationRules.NOT_BLANK_REGEX) @Size(max = 10_000) String description,
+        @Pattern(regexp = ValidationRules.NOT_BLANK_REGEX) @Size(max = 1_000) String shortDescription
+) {}

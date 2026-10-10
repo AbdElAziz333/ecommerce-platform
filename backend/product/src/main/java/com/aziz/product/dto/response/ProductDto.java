@@ -1,19 +1,16 @@
 package com.aziz.product.dto.response;
 
-import lombok.*;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
 
-@Getter
-@Setter
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class ProductDto {
-    private String name;
-    private String description;
-    private String shortDescription;
-    private String sku;
-    private String slug;
-    private Double price;
-    private Integer stockQuantity;
-//    private List<String> variantAttributes;
-}
+public record ProductDto(
+        Long id,
+        String name,
+        String description,
+        String shortDescription,
+        String slug,
+        BigDecimal priceFrom,
+        List<VariantDto> variants,
+        Instant createdAt
+) {}

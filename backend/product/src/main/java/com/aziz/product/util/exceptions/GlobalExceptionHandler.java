@@ -1,16 +1,14 @@
 package com.aziz.product.util.exceptions;
 
+import com.aziz.product.util.ApiResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.time.LocalDateTime;
-
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     @ExceptionHandler(ApiException.class)
-    public ResponseEntity<ApiError> handleApiExceptions(ApiException ex) {
-        ApiError error = new ApiError(ex.getHttpStatus().value(), ex.getMessage(), LocalDateTime.now());
-        return new ResponseEntity<>(error, ex.getHttpStatus());
+    public ResponseEntity<ApiResponse<Void>> handleApi(ApiException ex) {
+        return ResponseEntity.status(ex.getHttpStatus()).body(ApiResponse.error(ex.getMessage()));
     }
 }
