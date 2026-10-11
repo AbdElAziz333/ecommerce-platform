@@ -41,7 +41,9 @@ public class SecurityConfig {
                 .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**", "/actuator/health/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/products/mine").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/products/**").permitAll()
+                        .requestMatchers("/api/v1/products/**").authenticated()   // POST/PATCH/DELETE
                         .requestMatchers("/api/v1/carts/**").permitAll()   // guests use Session-Id
                         .requestMatchers("/api/v1/users/current/**",
                                 "/api/v1/addresses/**",
