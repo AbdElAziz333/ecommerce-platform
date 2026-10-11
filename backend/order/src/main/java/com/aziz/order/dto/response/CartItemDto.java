@@ -1,19 +1,8 @@
 package com.aziz.order.dto.response;
 
-import lombok.*;
-
 import java.math.BigDecimal;
+import java.util.Map;
 
-@Getter
-@Setter
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class CartItemDto {
-    private String productId;
-    private String productNameSnapshot;
-    private String productSlug;
-    private Integer quantity;
-    private BigDecimal unitPrice;
-    private BigDecimal totalPrice;
-}
+public record CartItemDto(Long variantId, Long productId, String name, String slug, String sku,
+                          Map<String, String> options, int quantity, BigDecimal unitPrice,
+                          BigDecimal lineTotal, boolean inStock) {}

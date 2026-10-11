@@ -1,26 +1,14 @@
 package com.aziz.order.dto.response;
 
+import com.aziz.order.dto.request.ShippingAddress;
 import com.aziz.order.util.enums.*;
-import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-@Getter
-@Setter
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class OrderDto {
-    private UUID id;
-    private String orderNumber;
-    private OrderStatus orderStatus;
-    private BigDecimal shippingAmount;
-    private BigDecimal totalAmount;
-    private Long shippingAddressId;
-    private PaymentStatus paymentStatus;
-    private PaymentMethod paymentMethod;
-    private String notes;
-    private List<OrderItemDto> items;
-}
+public record OrderDto(UUID id, String orderNumber, OrderStatus status, PaymentStatus paymentStatus,
+                       PaymentMethod paymentMethod, ShippingAddress shippingAddress,
+                       BigDecimal subtotal, BigDecimal shippingAmount, BigDecimal totalAmount,
+                       String notes, Instant createdAt, List<OrderItemDto> items) {}

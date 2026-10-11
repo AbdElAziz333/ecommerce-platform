@@ -1,12 +1,13 @@
 package com.aziz.order.controller;
 
 import com.aziz.order.dto.request.AddItemRequest;
+import com.aziz.order.dto.request.CartOwner;
 import com.aziz.order.dto.response.CartDto;
 import com.aziz.order.dto.request.UpdateQuantityRequest;
 import com.aziz.order.service.CartService;
 import com.aziz.order.util.ApiResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -16,60 +17,33 @@ public class CartController {
     private final CartService service;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<CartDto>> getCart(
-            @RequestHeader("User-Id") Long userId,
-            @RequestHeader("Session-Id") String sessionId
-    ) {
-        CartDto cart = service.getOrCreateCart(userId, sessionId);
-        return ResponseEntity.ok(ApiResponse.success("Fetched the cart successfully", cart));
+    public ApiResponse<CartDto> get(CartOwner owner) {
+        return ApiResponse.ok(service.getCart(owner));
     }
 
     @GetMapping("/count")
-    public ResponseEntity<ApiResponse<Integer>> getCartCount(
-            @RequestHeader("User-Id") Long userId,
-            @RequestHeader("Session-Id") String sessionId
-    ) {
-        int count = service.getItemCount(userId, sessionId);
-        return ResponseEntity.ok(ApiResponse.success("Fetched cart count", count));
+    public ApiResponse<Integer> count(CartOwner owner) {
+        return ApiResponse.ok(service.getItemCount(owner));
     }
 
     @PostMapping("/items")
-    public ResponseEntity<ApiResponse<CartDto>> addItemToCart(
-            @RequestHeader("User-Id") Long userId,
-            @RequestHeader("Session-Id") String sessionId,
-            @RequestBody AddItemRequest addItemRequest
-    ) {
-        CartDto cart = service.addItem(userId, sessionId, addItemRequest);
-        return ResponseEntity.ok(ApiResponse.success("Item added", cart));
+    public ApiResponse<CartDto> add(CartOwner owner, @RequestBody @Valid AddItemRequest request) {
+        return ApiResponse.ok(service.addItem(owner, request));
     }
 
-    @PatchMapping("/items/{productId}")
-    public ResponseEntity<ApiResponse<CartDto>> updateItemQuantity(
-            @RequestHeader("User-Id") Long userId,
-            @RequestHeader("Session-Id") String sessionId,
-            @PathVariable String productId,
-            @RequestBody UpdateQuantityRequest updateQuantityRequest
-    ) {
-        CartDto cart = service.updateQuantity(userId, sessionId, productId, updateQuantityRequest.getQuantity());
-        return ResponseEntity.ok(ApiResponse.success("Quantity updated", cart));
+    @PatchMapping("/items/{variantId}")
+    public ApiResponse<CartDto> updateQuantity(CartOwner owner, @PathVariable Long variantId, @RequestBody @Valid UpdateQuantityRequest request) {
+        return ApiResponse.ok(service.updateQuantity(owner, variantId, request.quantity()));
     }
 
-    @DeleteMapping("/items/{productId}")
-    public ResponseEntity<ApiResponse<CartDto>> removeItemFromCart(
-            @RequestHeader("User-Id") Long userId,
-            @RequestHeader("Session-Id") String sessionId,
-            @PathVariable String productId
-    ) {
-        CartDto cart = service.removeItem(userId, sessionId, productId);
-        return ResponseEntity.ok(ApiResponse.success("Item removed", cart));
+    @DeleteMapping("/items/{variantId}")
+    public ApiResponse<CartDto> remove(CartOwner owner, @PathVariable Long variantId) {
+        return ApiResponse.ok(service.removeItem(owner, variantId));
     }
 
+    // TODO: should be called after login
     @PostMapping("/merge")
-    public ResponseEntity<ApiResponse<CartDto>> mergeGuestCart(
-            @RequestHeader("User-Id") Long userId,
-            @RequestHeader("Session-Id") String sessionId
-    ) {
-        CartDto cart = service.mergeGuestCartIntoUserCart(userId, sessionId);
-        return ResponseEntity.ok(ApiResponse.success("Merged carts", cart));
+    public ApiResponse<CartDto> merge(CartOwner owner) {
+        return ApiResponse.ok(service.mergeGuestCart(owner));
     }
 }

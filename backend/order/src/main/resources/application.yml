@@ -34,3 +34,6 @@ logging:
 
 server:
   port: ${APP_PORT:8083}
+
+orders:
+  shipping-fee: 50.00

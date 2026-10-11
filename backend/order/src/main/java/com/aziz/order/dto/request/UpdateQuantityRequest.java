@@ -1,12 +1,7 @@
 package com.aziz.order.dto.request;
 
-import lombok.*;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 
-@Getter
-@Setter
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class UpdateQuantityRequest {
-    private Integer quantity;
-}
+public record UpdateQuantityRequest(@NotNull @Min(0) @Max(99) Integer quantity) {}

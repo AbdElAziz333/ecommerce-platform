@@ -1,19 +1,9 @@
 package com.aziz.order.dto.response;
 
-import lombok.*;
-
-import java.util.ArrayList;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
-@Getter
-@Setter
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class CartDto {
-    private UUID cartId;
-    private String sessionId;
-    private Long userId;
-    private List<CartItemDto> items = new ArrayList<>();
+public record CartDto(List<CartItemDto> items, int itemCount, BigDecimal subtotal) {
+    public static final CartDto EMPTY = new CartDto(List.of(), 0, BigDecimal.ZERO);
 }

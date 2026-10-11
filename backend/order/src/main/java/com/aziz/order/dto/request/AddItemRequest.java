@@ -1,18 +1,7 @@
 package com.aziz.order.dto.request;
 
-import lombok.*;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 
-import java.math.BigDecimal;
-
-@Getter
-@Setter
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class AddItemRequest {
-    private String productId;
-    private String productSlug;
-    private Integer quantity;
-    private BigDecimal unitPrice;
-    private String productNameSnapshot;
-}
+public record AddItemRequest(@NotNull Long variantId, @NotNull @Min(1) @Max(99) Integer quantity) {}

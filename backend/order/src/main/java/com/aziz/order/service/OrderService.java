@@ -1,15 +1,18 @@
 package com.aziz.order.service;
 
+import com.aziz.order.client.ProductClient;
+import com.aziz.order.dto.response.*;
+import com.aziz.order.model.Cart;
+import com.aziz.order.model.CartItem;
 import com.aziz.order.model.OrderItem;
 import com.aziz.order.dto.request.CreateOrderRequest;
-import com.aziz.order.dto.response.OrderDto;
-import com.aziz.order.dto.request.UpdateOrderRequest;
 import com.aziz.order.mapper.OrderMapper;
 import com.aziz.order.model.Order;
+import com.aziz.order.repository.CartRepository;
 import com.aziz.order.repository.OrderRepository;
 import com.aziz.order.util.enums.OrderStatus;
-import com.aziz.order.util.enums.PaymentStatus;
 import com.aziz.order.util.exception.*;
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -17,91 +20,128 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
-import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderService {
+    private static final int PAGE_SIZE = 20;
+
     private final OrderRepository repository;
+    private final CartRepository cartRepository;
+    private final ProductClient productClient;
     private final OrderMapper mapper;
+    private final OrderProperties properties;
+    private final TransactionTemplate tx;
 
-    @Transactional(readOnly = true)
-    public Page<OrderDto> getOrders(Long userId, int page) {
-        Pageable pageable = PageRequest.of(page, 100, Sort.by("createdAt").ascending());
-        return repository.findByUserId(userId, pageable).map(mapper::orderToDto);
+    public Page<OrderSummaryDto> getOrders(Long userId, int page) {
+        Pageable pageable = PageRequest.of(page, PAGE_SIZE, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return repository.findByUserId(userId, pageable).map(mapper::toSummary);
     }
 
-    @Transactional(readOnly = true)
-    public OrderDto getOrderById(Long userId, UUID orderId) {
-        log.debug("Fetching order: {} for user: {}", orderId, userId);
-        return mapper.orderToDto(getOrderForUser(userId, orderId));
+    public OrderDto getOrder(Long userId, UUID id) {
+        return mapper.toDto(findOwned(userId, id));
     }
 
-    @Transactional
     public OrderDto createOrder(Long userId, CreateOrderRequest request) {
-        log.debug("Creating order for user: {}", userId);
+        List<StockChange> reserved = new ArrayList<>();
 
-        Order order = mapper.createRequestToOrder(request);
+        try {
+            Order order = tx.execute(status -> place(userId, request, reserved));
+            log.info("Order {} created for user {}", order.getOrderNumber(), userId);
+            return mapper.toDto(order);
+        } catch (RuntimeException e) {
+            if (!reserved.isEmpty()) {
+                release(reserved);
+            }
 
-        initializeOrder(order, userId);
-        calculateAmounts(order);
-
-        Order savedOrder = repository.save(order);
-
-        log.info("Order {} created successfully for user {}", savedOrder.getOrderNumber(), userId);
-        return mapper.orderToDto(savedOrder);
+            throw e;
+        }
     }
 
-    @Transactional
-    public OrderDto updateOrder(Long userId, UUID orderId, UpdateOrderRequest request) {
-        Order order = getOrderForUser(userId, orderId);
-
-        order.setOrderStatus(request.getOrderStatus());
-        order.setPaymentStatus(request.getPaymentStatus());
-
-        log.info("Order {} updated to status {}", order.getOrderNumber(), order.getOrderStatus());
-        return mapper.orderToDto(order);
+    public OrderDto cancelOrder(Long userId, UUID id) {
+        return changeStatus(() -> findOwned(userId, id), OrderStatus.CANCELLED);
     }
 
-    @Transactional
-    public void deleteOrder(Long userId, UUID orderId) {
-        repository.delete(getOrderForUser(userId, orderId));
-        log.info("Order {} deleted for user {}", orderId, userId);
+    public OrderDto updateStatus(UUID id, OrderStatus next) {
+        return changeStatus(() -> repository.findWithItemsById(id).orElseThrow(() -> new NotFoundException("Order not found: " + id)), next);
     }
 
-    private void initializeOrder(Order order, Long userId) {
-        order.getItems().forEach(item -> item.setTotalPrice(item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity().longValue()))));
-        order.setTotalAmount(BigDecimal.valueOf(1));
-        order.setUserId(userId);
-        order.setOrderStatus(OrderStatus.PENDING);
-        order.setPaymentStatus(PaymentStatus.PENDING);
-        order.setOrderNumber(generateOrderNumber());
+    private Order place(Long userId, CreateOrderRequest request, List<StockChange> reserved) {
+        Cart cart = cartRepository.findByUserIdForUpdate(userId)
+                .filter(c -> !c.getItems().isEmpty())
+                .orElseThrow(() -> new BadRequestException("Your cart is empty"));
+
+        Map<Long, VariantInfo> variants = productClient
+                .findVariants(cart.getItems().stream().map(CartItem::getVariantId).toList()).stream()
+                .collect(Collectors.toMap(VariantInfo::variantId, Function.identity()));
+
+        List<OrderItem> items = cart.getItems().stream().map(ci -> {
+            VariantInfo v = variants.get(ci.getVariantId());
+
+            if (v == null) {
+                throw new BadRequestException("Some items in your cart are no longer available");
+            }
+
+            return OrderItem.snapshot(v, ci.getQuantity());
+        }).toList();
+
+        List<StockChange> changes = items.stream()
+                .map(i -> new StockChange(i.getVariantId(), i.getQuantity()))
+                .toList();
+        reserve(changes);
+        reserved.addAll(changes);
+
+        Order order = repository.save(Order.place(userId, request.shippingAddress(), request.paymentMethod(),
+                properties.shippingFee(), request.notes(), items));
+
+        cart.clear();
+        return order;
     }
 
-    private void calculateAmounts(Order order) {
-        BigDecimal itemsTotal = order.getItems().stream()
-                .map(OrderItem::getTotalPrice)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    private OrderDto changeStatus(Supplier<Order> lookup, OrderStatus next) {
+        Order order = tx.execute(status -> {
+            Order o = lookup.get();
+            // validates the transition; @Version makes concurrent changes fail
+            o.changeStatus(next);
+            return o;
+        });
 
-        order.setTotalAmount(itemsTotal.add(order.getShippingAmount()));
-    }
-
-    private String generateOrderNumber() {
-        return "ORD-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase();
-    }
-
-    private Order getOrderForUser(Long userId, UUID orderId) {
-        Order order = repository.findById(orderId)
-                .orElseThrow(() -> new NotFoundException("Order not found: " + orderId));
-
-        if (!order.getUserId().equals(userId)) {
-            throw new OrderAccessDeniedException("Access denied for order: " + orderId);
+        // reached exactly once per order, thanks to the transition rules
+        if (next == OrderStatus.CANCELLED) {
+            release(order.getItems().stream().map(i -> new StockChange(i.getVariantId(), i.getQuantity())).toList());
         }
 
-        return order;
+        log.info("Order {} is now {}", order.getOrderNumber(), order.getStatus());
+        return mapper.toDto(order);
+    }
+
+    private void reserve(List<StockChange> changes) {
+        try {
+            productClient.reserve(changes);
+        } catch (FeignException.Conflict e) {
+            throw new ConflictException("Some items are out of stock");
+        }
+    }
+
+    private void release(List<StockChange> changes) {
+        try {
+            productClient.release(changes);
+        } catch (RuntimeException e) {
+            log.error("Failed to release stock {}. Manual reconciliation needed", changes, e);
+        }
+    }
+
+    private Order findOwned(Long userId, UUID id) {
+        return repository.findWithItemsByIdAndUserId(id, userId).orElseThrow(() -> new NotFoundException("Order not found: " + id));
     }
 }
