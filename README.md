@@ -7,8 +7,6 @@ A simple e-commerce web platform written in spring boot.
 backend -> backend files (spring boot)
 frontend -> frontend files (reactjs)
 docs -> diagrams (ERD, C4, sequence)
-deploy -> gitops files (k8s, helm, fluxcd)
-infra -> infrastructure files (terraform, ansible)
 
 ## How To Run
 
@@ -37,12 +35,3 @@ make sure you have Docker installed (check with docker --version)
 
 - First, run make docker-build in cmd (builds docker images)
 - Second, run make run-prod in cmd and volah
-
-#### Kubernetes
-
-apps runs in k8s
-databases in k8s
-
-make sure you have kubectl tool installed. check with `kubectl version`
-second, run databases with `make kube_apply_dbs`
-third, run apps with `make kube_apply_apps`
