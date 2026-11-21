@@ -1,6 +1,6 @@
 package com.aziz.gateway.service;
 
-import com.aziz.gateway.dto.request.CreateUserRequest;
+import com.aziz.gateway.dto.request.SignupRequest;
 import com.aziz.gateway.dto.response.AuthTokens;
 import com.aziz.gateway.model.User;
 import com.aziz.gateway.repository.RefreshTokenRepository;
@@ -51,7 +51,7 @@ public class AuthService {
         return issueTokens(user);
     }
 
-    public AuthTokens register(CreateUserRequest request) {
+    public AuthTokens signup(SignupRequest request) {
         String email = normalize(request.email());
         if (users.existsByEmail(email)) {
             throw new AlreadyExistsException("User already exists with provided email");

@@ -1,6 +1,6 @@
 package com.aziz.gateway.controller;
 
-import com.aziz.gateway.dto.request.CreateUserRequest;
+import com.aziz.gateway.dto.request.SignupRequest;
 import com.aziz.gateway.dto.request.LoginRequest;
 import com.aziz.gateway.dto.response.AuthTokens;
 import com.aziz.gateway.service.AuthCookieService;
@@ -28,9 +28,9 @@ public class AuthController {
                 .build();
     }
 
-    @PostMapping("/register")
-    public ResponseEntity<Void> register(@RequestBody @Valid CreateUserRequest request) {
-        AuthTokens tokens = service.register(request);
+    @PostMapping("/signup")
+    public ResponseEntity<Void> signup(@RequestBody @Valid SignupRequest request) {
+        AuthTokens tokens = service.signup(request);
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .headers(cookieService.authHeaders(tokens))

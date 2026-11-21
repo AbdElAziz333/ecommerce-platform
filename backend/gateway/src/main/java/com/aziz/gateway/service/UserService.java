@@ -1,6 +1,6 @@
 package com.aziz.gateway.service;
 
-import com.aziz.gateway.dto.request.ChangePasswordRequest;
+import com.aziz.gateway.dto.request.UpdatePasswordRequest;
 import com.aziz.gateway.dto.response.CurrentUserDto;
 import com.aziz.gateway.dto.response.UserDto;
 import com.aziz.gateway.mapper.UserMapper;
@@ -12,12 +12,13 @@ import com.aziz.gateway.util.exceptions.BadRequestException;
 import com.aziz.gateway.util.exceptions.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Slf4j
 @Service
@@ -32,9 +33,8 @@ public class UserService {
     private final RefreshTokenRepository refreshTokens;
 
     @Transactional(readOnly = true)
-    public Page<UserDto> getUsers(int page) {
-        return repository.findAll(PageRequest.of(page, PAGE_SIZE, Sort.by("createdAt")))
-                .map(mapper::toDto);
+    public List<UserDto> getUsers(int page) {
+        return repository.findAll(PageRequest.of(page, PAGE_SIZE, Sort.by("createdAt"))).map(mapper::toDto).toList();
     }
 
     @Transactional(readOnly = true)
@@ -60,7 +60,7 @@ public class UserService {
     }
 
     @Transactional
-    public void changePassword(Long id, ChangePasswordRequest request) {
+    public void changePassword(Long id, UpdatePasswordRequest request) {
         User user = findOrThrow(id);
         if (!encoder.matches(request.currentPassword(), user.getPassword())) {
             // 400 on purpose: a 401 would make the frontend think the session expired

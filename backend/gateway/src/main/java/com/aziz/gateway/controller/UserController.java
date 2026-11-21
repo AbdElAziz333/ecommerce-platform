@@ -1,6 +1,6 @@
 package com.aziz.gateway.controller;
 
-import com.aziz.gateway.dto.request.ChangePasswordRequest;
+import com.aziz.gateway.dto.request.UpdatePasswordRequest;
 import com.aziz.gateway.dto.response.CurrentUserDto;
 import com.aziz.gateway.dto.response.UserDto;
 import com.aziz.gateway.dto.request.UpdateUserRequest;
@@ -10,11 +10,12 @@ import com.aziz.gateway.util.ApiResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -37,7 +38,7 @@ public class UserController {
 
     @PutMapping("/current/password")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void changePassword(@AuthenticationPrincipal Long userId, @RequestBody @Valid ChangePasswordRequest request) {
+    public void updatePassword(@AuthenticationPrincipal Long userId, @RequestBody @Valid UpdatePasswordRequest request) {
         service.changePassword(userId, request);
     }
 
@@ -50,7 +51,7 @@ public class UserController {
     // ---- admin only ----
 
     @GetMapping
-    public ApiResponse<Page<UserDto>> getUsers(@RequestParam(defaultValue = "0") @Min(0) int page) {
+    public ApiResponse<List<UserDto>> getUsers(@RequestParam(defaultValue = "0") @Min(0) int page) {
         return ApiResponse.ok(service.getUsers(page));
     }
 
