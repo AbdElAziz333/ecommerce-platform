@@ -15,7 +15,6 @@ import com.aziz.order.util.exception.*;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -43,9 +42,9 @@ public class OrderService {
     private final OrderProperties properties;
     private final TransactionTemplate tx;
 
-    public Page<OrderSummaryDto> getOrders(Long userId, int page) {
+    public List<OrderSummaryDto> getOrders(Long userId, int page) {
         Pageable pageable = PageRequest.of(page, PAGE_SIZE, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return repository.findByUserId(userId, pageable).map(mapper::toSummary);
+        return repository.findByUserId(userId, pageable).map(mapper::toSummary).toList();
     }
 
     public OrderDto getOrder(Long userId, UUID id) {

@@ -13,6 +13,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -22,8 +23,7 @@ public class OrderController {
     private final OrderService service;
 
     @GetMapping
-    public ApiResponse<Page<OrderSummaryDto>> getOrders(@RequestHeader("User-Id") Long userId,
-                                                        @RequestParam(defaultValue = "0") @Min(0) int page) {
+    public ApiResponse<List<OrderSummaryDto>> getOrders(@RequestHeader("User-Id") Long userId, @RequestParam(defaultValue = "0") @Min(0) int page) {
         return ApiResponse.ok(service.getOrders(userId, page));
     }
 
@@ -34,8 +34,7 @@ public class OrderController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<OrderDto> createOrder(@RequestHeader("User-Id") Long userId,
-                                             @RequestBody @Valid CreateOrderRequest request) {
+    public ApiResponse<OrderDto> createOrder(@RequestHeader("User-Id") Long userId, @RequestBody @Valid CreateOrderRequest request) {
         return ApiResponse.ok(service.createOrder(userId, request));
     }
 
@@ -46,8 +45,7 @@ public class OrderController {
 
     // ---- admin ----
     @PatchMapping("/{id}/status")
-    public ApiResponse<OrderDto> updateStatus(@PathVariable UUID id,
-                                              @RequestBody @Valid UpdateOrderStatusRequest request) {
+    public ApiResponse<OrderDto> updateStatus(@PathVariable UUID id, @RequestBody @Valid UpdateOrderStatusRequest request) {
         return ApiResponse.ok(service.updateStatus(id, request.status()));
     }
 }

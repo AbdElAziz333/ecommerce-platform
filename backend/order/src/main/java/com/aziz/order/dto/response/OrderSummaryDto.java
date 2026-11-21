@@ -7,5 +7,11 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
-public record OrderSummaryDto(UUID id, String orderNumber, OrderStatus status, PaymentStatus paymentStatus,
-                              BigDecimal totalAmount, Instant createdAt) {}
+public record OrderSummaryDto(
+        UUID id,
+        String orderNumber,
+        OrderStatus status,
+        PaymentStatus paymentStatus,
+        BigDecimal totalAmount,
+        Instant createdAt
+) {}
