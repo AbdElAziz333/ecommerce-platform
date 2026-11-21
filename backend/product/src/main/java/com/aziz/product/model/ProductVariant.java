@@ -26,14 +26,14 @@ public class ProductVariant {
     @JoinColumn(name = "product_id", nullable = false, updatable = false)
     private Product product;
 
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     private String sku;
 
-    @Column(nullable = false)
+    @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal price;
 
     @Column(name = "stock_quantity", nullable = false)
-    private Integer stockQuantity;
+    private int stockQuantity;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "option_values", columnDefinition = "jsonb", nullable = false)

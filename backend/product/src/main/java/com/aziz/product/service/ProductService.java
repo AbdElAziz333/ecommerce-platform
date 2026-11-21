@@ -36,9 +36,9 @@ public class ProductService {
     private final ProductMapper mapper;
 
     @Transactional(readOnly = true)
-    public Page<ProductDto> getProducts(int page) {
+    public List<ProductDto> getProducts(int page) {
         return repository.findAll(PageRequest.of(page, PAGE_SIZE, Sort.by("createdAt", "id")))
-                .map(mapper::toDto);
+                .map(mapper::toDto).toList();
     }
 
     @Transactional(readOnly = true)

@@ -23,7 +23,7 @@ public class ProductController {
     private final ProductService service;
 
     @GetMapping
-    public ApiResponse<Page<ProductDto>> getProducts(@RequestParam(defaultValue = "0") @Min(0) int page) {
+    public ApiResponse<List<ProductDto>> getProducts(@RequestParam(defaultValue = "0") @Min(0) int page) {
         return ApiResponse.ok(service.getProducts(page));
     }
 
